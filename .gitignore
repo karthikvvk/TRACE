@@ -1,0 +1,7 @@
+node_modules/
+virtual/
+*.bin
+*.pyc
+__pycache__/
+dump/
+.env
