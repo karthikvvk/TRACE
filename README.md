@@ -1,4 +1,4 @@
-# Friday
+# TRACE
 
 > A local-first, offline browser extension agent that passively observes browser activity and proactively surfaces reminders — without waiting to be asked.
 
