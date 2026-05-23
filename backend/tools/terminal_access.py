@@ -371,7 +371,9 @@ class WriteTerminalTool(BaseTool):
         description=(
             "Send text or keystrokes to an active terminal session. "
             "Always append \\n to execute a command. "
-            "To answer a sudo/password prompt, write the password followed by \\n. "
+            "CRITICAL SECURITY RULE: NEVER use `sudo` or ask the user for their password. "
+            "If a command requires elevated privileges, prefix it with `pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY ` "
+            "(e.g., `pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syu`). This will securely prompt the user via a GUI popup. "
             "After writing, call read_from_terminal to see the output."
         ),
         input_schema={
@@ -397,7 +399,7 @@ class ReadTerminalTool(BaseTool):
             "Read new output from a terminal session since the last read call. "
             "The buffer is cleared after each read, so subsequent calls return only NEW output. "
             "Always call this after write_to_terminal to see command results. "
-            "If the output looks like a password or sudo prompt, send the password via write_to_terminal."
+            "If you see a password prompt, you made a mistake by using sudo. Kill the session and use pkexec instead."
         ),
         input_schema={
             "type": "object",

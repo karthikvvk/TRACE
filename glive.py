@@ -270,22 +270,28 @@ class AudioLoop:
 
                 # ── MCP Tool Call ─────────────────────────────────────────
                 if response.tool_call:
+                    func_responses = []
                     for fc in response.tool_call.function_calls:
                         # fc.args is a MapComposite (proto map); convert to dict
                         args = dict(fc.args) if fc.args else {}
                         result_str = await _dispatch_tool_call(fc.name, args)
                         print(f"  ↳ result: {result_str[:120]}")
 
-                        # Send the tool response back to the model
-                        await self.session.send_tool_response(
-                            function_responses=[
-                                types.FunctionResponse(
-                                    id=fc.id,
-                                    name=fc.name,
-                                    response={"result": result_str},
-                                )
-                            ]
+                        # Truncate to prevent websocket 1007 payload too large errors
+                        if len(result_str) > 30000:
+                            result_str = result_str[-30000:] + "\n...[OUTPUT TRUNCATED]"
+
+                        func_responses.append(
+                            types.FunctionResponse(
+                                id=fc.id,
+                                name=fc.name,
+                                response={"result": result_str},
+                            )
                         )
+                    
+                    if func_responses:
+                        # Send all tool responses back to the model in a single frame
+                        await self.session.send_tool_response(function_responses=func_responses)
 
             # If the model finishes its turn (or was interrupted), flush audio.
             while not self.audio_in_queue.empty():
