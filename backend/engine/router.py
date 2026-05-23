@@ -12,6 +12,7 @@ from backend.tools.task_tool import CreateTaskTool, GetTasksTool, UpdateTaskTool
 from backend.tools.memory_tool import LogEventTool, QueryMemoryTool
 from backend.tools.search_tool import ExtractSearchIntentTool
 from backend.tools.calendar_tool import GetCalendarEventsTool
+from backend.tools.terminal_access import CreateTerminalTool, WriteTerminalTool, ReadTerminalTool, KillTerminalTool
 
 
 class ToolRouter:
@@ -31,9 +32,17 @@ class ToolRouter:
             UpdateTaskTool(),
             DeleteTaskTool(),
             LogEventTool(),
+            
             QueryMemoryTool(),
+
             ExtractSearchIntentTool(),
+
             GetCalendarEventsTool(),
+
+            CreateTerminalTool(),
+            WriteTerminalTool(),
+            ReadTerminalTool(),
+            KillTerminalTool(),
         ]
         for tool in defaults:
             self.register(tool)

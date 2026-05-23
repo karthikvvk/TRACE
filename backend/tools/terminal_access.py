@@ -24,6 +24,8 @@ import struct
 import uuid
 from typing import Optional
 
+from backend.tools.base import BaseTool, ToolSchema
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -329,6 +331,84 @@ def list_sessions():
             }
             for sid, s in sessions.items()
         ]
+
+
+# ---------------------------------------------------------------------------
+# MCP Tool Wrappers
+# ---------------------------------------------------------------------------
+
+class CreateTerminalTool(BaseTool):
+    schema = ToolSchema(
+        name="create_terminal_session",
+        description="Spawn a new shell or command in a PTY session.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "default": "/bin/bash"}
+            }
+        },
+        risk_level="medium"
+    )
+
+    async def execute(self, params: dict) -> dict:
+        req = CreateRequest(command=params.get("command", "/bin/bash"))
+        return create_session(req)
+
+
+class WriteTerminalTool(BaseTool):
+    schema = ToolSchema(
+        name="write_to_terminal",
+        description="Send text or keystrokes to an active terminal session.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"},
+                "text": {"type": "string"}
+            },
+            "required": ["session_id", "text"]
+        },
+        risk_level="medium"
+    )
+
+    async def execute(self, params: dict) -> dict:
+        req = WriteRequest(text=params["text"])
+        return write_to_session(params["session_id"], req)
+
+
+class ReadTerminalTool(BaseTool):
+    schema = ToolSchema(
+        name="read_from_terminal",
+        description="Read all buffered output accumulated so far from a terminal session. Returns text.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"}
+            },
+            "required": ["session_id"]
+        },
+        risk_level="low"
+    )
+
+    async def execute(self, params: dict) -> dict:
+        return read_from_session(params["session_id"], decode=True)
+
+
+class KillTerminalTool(BaseTool):
+    schema = ToolSchema(
+        name="kill_terminal_session",
+        description="Kill an active terminal session.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"}
+            },
+            "required": ["session_id"]
+        },
+        risk_level="medium"
+    )
+
+    async def execute(self, params: dict) -> dict:
+        return kill_session(params["session_id"])
 
 
 # ---------------------------------------------------------------------------
