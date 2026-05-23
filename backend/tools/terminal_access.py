@@ -13,6 +13,7 @@ Endpoints:
   GET  /sessions                  - List all active sessions
 """
 
+import asyncio
 import os
 import pty
 import fcntl
@@ -337,6 +338,15 @@ def list_sessions():
 # MCP Tool Wrappers
 # ---------------------------------------------------------------------------
 
+import re as _re
+import time as _time
+
+_ANSI_ESCAPE = _re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]|\x1B\][^\x07]*\x07|\x1B[^\[\]]')
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI/VT100 escape sequences so the model sees plain text."""
+    return _ANSI_ESCAPE.sub('', text)
+
 class CreateTerminalTool(BaseTool):
     schema = ToolSchema(
         name="create_terminal_session",
@@ -358,7 +368,12 @@ class CreateTerminalTool(BaseTool):
 class WriteTerminalTool(BaseTool):
     schema = ToolSchema(
         name="write_to_terminal",
-        description="Send text or keystrokes to an active terminal session.",
+        description=(
+            "Send text or keystrokes to an active terminal session. "
+            "Always append \\n to execute a command. "
+            "To answer a sudo/password prompt, write the password followed by \\n. "
+            "After writing, call read_from_terminal to see the output."
+        ),
         input_schema={
             "type": "object",
             "properties": {
@@ -378,7 +393,12 @@ class WriteTerminalTool(BaseTool):
 class ReadTerminalTool(BaseTool):
     schema = ToolSchema(
         name="read_from_terminal",
-        description="Read all buffered output accumulated so far from a terminal session. Returns text.",
+        description=(
+            "Read new output from a terminal session since the last read call. "
+            "The buffer is cleared after each read, so subsequent calls return only NEW output. "
+            "Always call this after write_to_terminal to see command results. "
+            "If the output looks like a password or sudo prompt, send the password via write_to_terminal."
+        ),
         input_schema={
             "type": "object",
             "properties": {
@@ -390,7 +410,15 @@ class ReadTerminalTool(BaseTool):
     )
 
     async def execute(self, params: dict) -> dict:
-        return read_from_session(params["session_id"], decode=True)
+        sid = params["session_id"]
+        # Give the PTY a moment to produce output after the last write
+        await asyncio.sleep(0.3)
+        result = read_from_session(sid, decode=True)
+        # Clear the buffer so the next read returns only NEW output
+        clear_read_buffer(sid)
+        # Strip ANSI/VT100 escape sequences so the model sees plain text
+        clean_text = _strip_ansi(result.get("output", ""))
+        return {"output": clean_text, "bytes": result.get("bytes", 0)}
 
 
 class KillTerminalTool(BaseTool):

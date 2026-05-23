@@ -263,12 +263,10 @@ class AudioLoop:
                 # ── Audio chunk ───────────────────────────────────────────
                 if data := response.data:
                     self.audio_in_queue.put_nowait(data)
-                    continue
 
                 # ── Text (transcript / model text) ────────────────────────
                 if text := response.text:
                     print(text, end="", flush=True)
-                    continue
 
                 # ── MCP Tool Call ─────────────────────────────────────────
                 if response.tool_call:
