@@ -6,7 +6,7 @@
 
 ## What This Is
 
-Friday is not a chatbot. It watches your browser, infers what you're doing, and reminds you about pending tasks at the right moment — all on-device, no cloud.
+TRACE is not a chatbot. It watches your browser, infers what you're doing, and reminds you about pending tasks at the right moment — all on-device, no cloud.
 
 ---
 
