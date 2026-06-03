@@ -4,6 +4,7 @@ uvicorn[standard]>=0.29.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 python-dotenv>=1.0.0
+aiofiles>=23.0.0          # required for FastAPI StaticFiles
 
 # ── Database ──────────────────────────────────────────────────────────────────
 # sqlite3 is stdlib — no extra package needed

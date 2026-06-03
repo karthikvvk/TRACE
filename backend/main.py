@@ -9,9 +9,12 @@ Startup sequence:
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
 from backend.db.init_db import init_db
@@ -49,6 +52,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Static UI ─────────────────────────────────────────────────────────────────
+_UI_DIR = Path(__file__).parent / "ui"
+if _UI_DIR.is_dir():
+    app.mount("/ui", StaticFiles(directory=_UI_DIR, html=True), name="ui")
+
 # ── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
@@ -68,14 +76,10 @@ app.include_router(chat.router)
 
 
 # ── Health & Meta ────────────────────────────────────────────────────────────
-@app.get("/", tags=["meta"])
+@app.get("/", tags=["meta"], include_in_schema=False)
 async def root():
-    return {
-        "name": "Friday",
-        "version": "0.1.0",
-        "status": "running",
-        "phase": 1,
-    }
+    """Redirect to the chat UI."""
+    return RedirectResponse(url="/ui/chat.html")
 
 
 @app.get("/tools", tags=["meta"])
