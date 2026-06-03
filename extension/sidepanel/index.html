@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friday</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a22;
+      --surface2: #22222e;
+      --border: rgba(255,255,255,0.07);
+      --accent: #7c5cfc;
+      --accent-glow: rgba(124,92,252,0.3);
+      --text: #e8e8f0;
+      --text-muted: #6b6b80;
+      --user-bubble: #2d2350;
+      --agent-bubble: #1e1e2a;
+      --error: #ff4d6d;
+      --success: #4ade80;
+    }
+
+    html, body { height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* ── Header ── */
+    #header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #header .logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    #header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+    #status-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #444;
+      margin-left: auto; transition: background 0.3s;
+    }
+    #status-dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    #status-dot.disconnected { background: var(--error); }
+    #status-label { font-size: 10px; color: var(--text-muted); }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1; overflow-y: auto; padding: 16px 12px;
+      display: flex; flex-direction: column; gap: 14px;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 92%; animation: fadeUp 0.2s ease; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.agent { align-self: flex-start; align-items: flex-start; }
+
+    .bubble {
+      padding: 10px 14px; border-radius: 14px; font-size: 13px;
+      line-height: 1.55; word-break: break-word; white-space: pre-wrap;
+    }
+    .msg.user .bubble { background: var(--user-bubble); border-bottom-right-radius: 4px; }
+    .msg.agent .bubble { background: var(--agent-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg.agent.streaming .bubble { border-color: var(--accent-glow); }
+
+    .msg-label { font-size: 10px; color: var(--text-muted); padding: 0 4px; }
+
+    /* Tool call chip */
+    .tool-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; padding: 4px 10px; border-radius: 20px;
+      background: rgba(124,92,252,0.12); border: 1px solid rgba(124,92,252,0.3);
+      color: #a78bfa; margin-top: 4px; width: fit-content;
+    }
+    .tool-chip.done { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.2); color: #4ade80; }
+    .tool-chip .spinner { animation: spin 1s linear infinite; }
+
+    /* System / error messages */
+    .system-msg {
+      align-self: center; font-size: 11px; color: var(--text-muted);
+      padding: 5px 12px; background: var(--surface2); border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+    .error-msg { color: var(--error); border-color: rgba(255,77,109,0.3); }
+
+    /* Typing indicator */
+    #typing { display: none; align-self: flex-start; }
+    #typing.visible { display: flex; }
+    #typing .bubble { padding: 10px 16px; }
+    .dot-anim { display: flex; gap: 4px; align-items: center; }
+    .dot-anim span {
+      width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .dot-anim span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-anim span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Input area ── */
+    #input-area {
+      padding: 12px; background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+    }
+    #chat-input {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 14px; font-size: 13px;
+      color: var(--text); font-family: inherit; resize: none;
+      outline: none; max-height: 120px; line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+    #chat-input:focus { border-color: var(--accent); }
+    #chat-input::placeholder { color: var(--text-muted); }
+
+    #send-btn {
+      width: 38px; height: 38px; border-radius: 10px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      color: white; font-size: 16px; display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.2s, transform 0.1s; flex-shrink: 0;
+    }
+    #send-btn:hover { opacity: 0.85; }
+    #send-btn:active { transform: scale(0.92); }
+    #send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div class="logo">F</div>
+    <h1>Friday</h1>
+    <span id="status-label">connecting…</span>
+    <div id="status-dot"></div>
+  </div>
+
+  <div id="messages">
+    <div class="system-msg">Friday is ready. Ask me anything — I can read your tabs, scrape URLs, and more.</div>
+  </div>
+
+  <div id="typing" class="msg agent">
+    <div class="bubble">
+      <div class="dot-anim"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="chat-input" rows="1" placeholder="Ask Friday anything… (Enter to send)" autocomplete="off"></textarea>
+    <button id="send-btn" title="Send">➤</button>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+const messagesEl = document.getElementById('messages');
+const inputEl    = document.getElementById('chat-input');
+const sendBtn    = document.getElementById('send-btn');
+const typingEl   = document.getElementById('typing');
+const statusDot  = document.getElementById('status-dot');
+const statusLabel= document.getElementById('status-label');
+
+let history = [];     // [{role, content}]
+let busy    = false;
+
+// ── Status polling ────────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch(`${API}/chat/status`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    statusDot.className   = 'connected';
+    statusLabel.textContent = d.browser_connected ? 'Extension connected' : 'No extension';
+  } catch {
+    statusDot.className   = 'disconnected';
+    statusLabel.textContent = 'Backend offline';
+  }
+}
+checkStatus();
+setInterval(checkStatus, 5000);
+
+// ── DOM helpers ───────────────────────────────────────────────────────────────
+function scrollDown() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+function addUserMsg(text) {
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<span class="msg-label">You</span><div class="bubble">${escHtml(text)}</div>`;
+  messagesEl.appendChild(div);
+  scrollDown();
+}
+
+function createAgentMsg() {
+  const div = document.createElement('div');
+  div.className = 'msg agent streaming';
+  div.innerHTML = `<span class="msg-label">Friday</span><div class="bubble"></div>`;
+  messagesEl.appendChild(div);
+  scrollDown();
+  return div.querySelector('.bubble');
+}
+
+function addSystemMsg(text, isError = false) {
+  const div = document.createElement('div');
+  div.className = 'system-msg' + (isError ? ' error-msg' : '');
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  scrollDown();
+}
+
+function addToolChip(name, done = false) {
+  const chip = document.createElement('div');
+  chip.className = 'tool-chip' + (done ? ' done' : '');
+  chip.innerHTML = done
+    ? `✓ ${name}`
+    : `<span class="spinner">⟳</span> ${name}…`;
+  messagesEl.appendChild(chip);
+  scrollDown();
+  return chip;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || busy) return;
+
+  busy = true;
+  sendBtn.disabled = true;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  addUserMsg(text);
+  history.push({ role: 'user', content: text });
+
+  typingEl.classList.add('visible');
+  messagesEl.appendChild(typingEl); // keep at bottom
+  scrollDown();
+
+  let agentBubble = null;
+  let agentText   = '';
+  let activeChips = {};   // name → chip element
+
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: history.slice(0, -1) }),
+    });
+
+    typingEl.classList.remove('visible');
+
+    if (!res.ok) {
+      addSystemMsg(`HTTP ${res.status}: ${res.statusText}`, true);
+      busy = false; sendBtn.disabled = false; return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (!raw) continue;
+        let event;
+        try { event = JSON.parse(raw); } catch { continue; }
+
+        if (event.type === 'text') {
+          if (!agentBubble) agentBubble = createAgentMsg();
+          agentText += event.content;
+          agentBubble.textContent = agentText;
+          scrollDown();
+        } else if (event.type === 'tool_call') {
+          if (!agentBubble) agentBubble = createAgentMsg();
+          const chip = addToolChip(event.name, false);
+          activeChips[event.name] = chip;
+        } else if (event.type === 'tool_result') {
+          if (activeChips[event.name]) {
+            activeChips[event.name].className = 'tool-chip done';
+            activeChips[event.name].innerHTML = `✓ ${event.name}`;
+          }
+        } else if (event.type === 'error') {
+          addSystemMsg(event.content, true);
+        } else if (event.type === 'done') {
+          if (agentText) history.push({ role: 'model', content: agentText });
+          if (agentBubble) agentBubble.closest('.msg')?.classList.remove('streaming');
+        }
+      }
+    }
+
+  } catch (err) {
+    typingEl.classList.remove('visible');
+    addSystemMsg('Network error: ' + err.message, true);
+  }
+
+  busy = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+sendBtn.addEventListener('click', sendMessage);
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+// Auto-grow textarea
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>

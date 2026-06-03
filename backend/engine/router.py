@@ -13,6 +13,22 @@ from backend.tools.memory_tool import LogEventTool, QueryMemoryTool
 from backend.tools.search_tool import ExtractSearchIntentTool
 from backend.tools.calendar_tool import GetCalendarEventsTool
 from backend.tools.terminal_access import CreateTerminalTool, WriteTerminalTool, ReadTerminalTool, KillTerminalTool
+from backend.tools.browser_tool import (
+    BrowserGetActiveTabTool,
+    BrowserGetPageTitleTool,
+    BrowserGetTabsTool,
+    BrowserGetDomTool,
+    BrowserGetMetaTool,
+    BrowserGetSelectionTool,
+    BrowserGetCookiesTool,
+    BrowserScrapeUrlTool,
+    BrowserNavigateTool,
+    BrowserOpenTabTool,
+    BrowserCloseTabTool,
+    BrowserClickTool,
+    BrowserFillInputTool,
+    BrowserExecuteScriptTool,
+)
 
 
 class ToolRouter:
@@ -43,6 +59,22 @@ class ToolRouter:
             WriteTerminalTool(),
             ReadTerminalTool(),
             KillTerminalTool(),
+
+            # Browser tools (require extension WS connection)
+            BrowserGetActiveTabTool(),
+            BrowserGetPageTitleTool(),
+            BrowserGetTabsTool(),
+            BrowserGetDomTool(),
+            BrowserGetMetaTool(),
+            BrowserGetSelectionTool(),
+            BrowserGetCookiesTool(),
+            BrowserScrapeUrlTool(),
+            BrowserNavigateTool(),
+            BrowserOpenTabTool(),
+            BrowserCloseTabTool(),
+            BrowserClickTool(),
+            BrowserFillInputTool(),
+            BrowserExecuteScriptTool(),
         ]
         for tool in defaults:
             self.register(tool)

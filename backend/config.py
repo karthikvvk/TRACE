@@ -28,9 +28,17 @@ class Settings(BaseSettings):
     # Extension origin (CORS)
     extension_origin: str = "*"         # Lock down to extension ID in production
 
+    # Browser bridge
+    extension_secret: str = "change-me-in-production"  # Shared secret for WS handshake
+    allow_script_execution: bool = False                # Gate browser_execute_script tool
+
     # Proactive engine
     check_interval_minutes: int = 10
     overdue_threshold_minutes: int = 5
+
+    # Gemini
+    gemini_api_key: str = ""                            # GEMINI_API_KEY env var
+    gemini_model: str = "gemini-2.5-flash-lite"
 
     # Local LLM (Phase 4)
     ollama_base_url: str = "http://localhost:11434"

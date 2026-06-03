@@ -16,19 +16,29 @@ import { post, get } from "../utils/api.js";
 const ALARM_NAME = "friday-check";
 const CHECK_INTERVAL_MINUTES = 10;
 
+// ── Browser channel config ────────────────────────────────────────────────────
+
+const WS_URL_BASE = "ws://localhost:8000/ws/browser";
+// The secret must match EXTENSION_SECRET in the server's .env.
+// In production, store this in chrome.storage.local after user setup.
+const EXTENSION_SECRET = "change-me-in-production";
+
+let ws = null;
+let reconnectDelay = 1000; // ms — doubles on each failure, capped at 30s
+let wsConnected = false;
+
 // ── Startup ───────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async () => {
   console.log("[Friday] Extension installed / updated.");
 
-  // Schedule the proactive check loop
   await chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: 1,
     periodInMinutes: CHECK_INTERVAL_MINUTES,
   });
 
-  // Open the side panel on install so the user sees it immediately
   chrome.sidePanel.setOptions({ enabled: true });
+  connectBrowserChannel();
 });
 
 // ── Navigation observation ────────────────────────────────────────────────────
@@ -144,4 +154,137 @@ async function handleMessage(message, sender) {
     default:
       return { error: `Unknown message type: ${message.type}` };
   }
+}
+
+// ── Browser channel (WebSocket) ───────────────────────────────────────────────
+
+/**
+ * Open a persistent WebSocket to the Friday backend.
+ * The server can then request browser data on behalf of the agent.
+ */
+function connectBrowserChannel() {
+  const url = `${WS_URL_BASE}?secret=${encodeURIComponent(EXTENSION_SECRET)}`;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    wsConnected = true;
+    reconnectDelay = 1000;
+    console.log("[Friday] Browser channel connected.");
+    // Notify popup/sidepanel if they're open
+    chrome.runtime.sendMessage({ type: "WS_STATUS", connected: true }).catch(() => {});
+  };
+
+  ws.onmessage = async (event) => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch {
+      console.warn("[Friday] Received non-JSON WS message.");
+      return;
+    }
+    const { id, action, params = {} } = msg;
+    try {
+      const result = await dispatchBrowserAction(action, params);
+      ws.send(JSON.stringify({ id, result }));
+    } catch (err) {
+      ws.send(JSON.stringify({ id, error: err.message }));
+    }
+  };
+
+  ws.onclose = () => {
+    wsConnected = false;
+    console.debug(`[Friday] Browser channel closed. Reconnecting in ${reconnectDelay}ms…`);
+    chrome.runtime.sendMessage({ type: "WS_STATUS", connected: false }).catch(() => {});
+    setTimeout(() => {
+      reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
+      connectBrowserChannel();
+    }, reconnectDelay);
+  };
+
+  ws.onerror = (err) => {
+    console.debug("[Friday] Browser channel error:", err.message ?? err);
+    // onclose fires after onerror — reconnect handled there
+  };
+}
+
+// Start the browser channel when the service worker loads
+connectBrowserChannel();
+
+/**
+ * Dispatch an action from the server to the appropriate Chrome API
+ * or content script handler.
+ */
+async function dispatchBrowserAction(action, params) {
+  switch (action) {
+    // ── State tools — instant Chrome API reads ──
+    case "get_active_tab": {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      return tab ? { id: tab.id, url: tab.url, title: tab.title } : null;
+    }
+    case "get_page_title": {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      return { title: tab?.title ?? null };
+    }
+
+    // ── Read tools ──
+    case "get_tabs": {
+      const tabs = await chrome.tabs.query({});
+      return tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, active: t.active }));
+    }
+    case "get_cookies": {
+      const cookies = await chrome.cookies.getAll({ domain: params.domain ?? undefined });
+      return cookies.map((c) => ({ name: c.name, value: c.value, domain: c.domain, path: c.path }));
+    }
+    case "get_dom":       return sendToBridge("GET_DOM",      params);
+    case "get_selection": return sendToBridge("GET_SELECTION", params);
+    case "get_meta":      return sendToBridge("GET_META",      params);
+
+    // ── Write tools ──
+    case "navigate": {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      await chrome.tabs.update(tab.id, { url: params.url });
+      return { ok: true, tab_id: tab.id };
+    }
+    case "open_tab": {
+      const tab = await chrome.tabs.create({ url: params.url, active: params.active ?? true });
+      return { ok: true, tab_id: tab.id };
+    }
+    case "close_tab": {
+      await chrome.tabs.remove(params.tab_id);
+      return { ok: true };
+    }
+    case "click":      return sendToBridge("CLICK",      params);
+    case "fill_input": return sendToBridge("FILL_INPUT", params);
+    case "scrape_url": {
+      // Open a new tab, wait for it to load, grab the DOM, then close it
+      const tab = await chrome.tabs.create({ url: params.url, active: false });
+      await waitForTabLoad(tab.id);
+      const result = await chrome.tabs.sendMessage(tab.id, { type: "GET_DOM", payload: {} });
+      await chrome.tabs.remove(tab.id);
+      return result;
+    }
+
+    default:
+      throw new Error(`Unknown action: ${action}`);
+  }
+}
+
+/** Inject a message into the active tab's bridge.js content script. */
+async function sendToBridge(type, payload = {}) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) throw new Error("No active tab found.");
+  return chrome.tabs.sendMessage(tab.id, { type, payload });
+}
+
+/** Promise that resolves when a tab finishes loading. */
+function waitForTabLoad(tabId) {
+  return new Promise((resolve) => {
+    function onUpdated(id, changeInfo) {
+      if (id === tabId && changeInfo.status === "complete") {
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        resolve();
+      }
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+  });
 }

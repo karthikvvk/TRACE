@@ -18,7 +18,9 @@ from backend.db.init_db import init_db
 from backend.memory.working import WorkingMemory
 from backend.engine.router import ToolRouter
 from backend.engine.notifier import Notifier
+from backend.ws.manager import get_channel
 from backend.routes import activity, tasks, memory, notify
+from backend.routes import browser_ws, chat
 
 
 @asynccontextmanager
@@ -31,6 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.working_memory = WorkingMemory()
     app.state.tool_router = ToolRouter()
     app.state.notifier = Notifier(working_memory=app.state.working_memory)
+    app.state.browser_channel = get_channel()  # module-level singleton
 
     print(f"✅  Friday backend ready → http://{settings.host}:{settings.port}")
     yield
@@ -60,6 +63,8 @@ app.include_router(activity.router)
 app.include_router(tasks.router)
 app.include_router(memory.router)
 app.include_router(notify.router)
+app.include_router(browser_ws.router)
+app.include_router(chat.router)
 
 
 # ── Health & Meta ────────────────────────────────────────────────────────────
@@ -85,3 +90,12 @@ async def list_tools(request_obj: None = None):
 async def get_context():
     """Return the current working memory context."""
     return app.state.working_memory.snapshot()
+
+
+@app.get("/test-scrape", tags=["debug"])
+async def test_scrape(url: str):
+    """Directly test the extension scraper without going through the AI."""
+    from backend.tools.browser_tool import BrowserScrapeUrlTool
+    tool = BrowserScrapeUrlTool()
+    result = await tool.execute({"url": url})
+    return {"url": url, "result": result}

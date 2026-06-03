@@ -5,6 +5,10 @@ import asyncio
 from typing import Any, List, Dict
 import json
 
+from dotenv import load_dotenv
+load_dotenv()  # Load GEMINI_API_KEY and other vars from .env
+
+
 # Add parent directory to sys.path so we can import 'backend'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -153,7 +157,7 @@ async def run_gemini():
     gemini_tools = [{"function_declarations": func_declarations}]
     
     chat = client.chats.create(
-        model="gemini-2.5-pro",
+        model="gemini-2.0-flash",
         config=types.GenerateContentConfig(
             tools=gemini_tools,
             temperature=0.7,
