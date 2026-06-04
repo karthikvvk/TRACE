@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     extension_secret: str = "change-me-in-production"  # Shared secret for WS handshake
     allow_script_execution: bool = False                # Gate browser_execute_script tool
 
+    # ── Colab Brain Offload (optional module — remove backend/bridge/ to disable) ──
+    colab_secret: str = "colab-change-me"   # COLAB_SECRET — shared with the Colab notebook
+    colab_mode: bool = False                # COLAB_MODE=true — route /chat through Colab brain
+
     # Proactive engine
     check_interval_minutes: int = 10
     overdue_threshold_minutes: int = 5

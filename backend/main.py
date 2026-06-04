@@ -24,6 +24,7 @@ from backend.engine.notifier import Notifier
 from backend.ws.manager import get_channel
 from backend.routes import activity, tasks, memory, notify
 from backend.routes import browser_ws, chat
+from backend.routes import colab_ws          # ← COLAB BRIDGE (remove to disable)
 
 
 @asynccontextmanager
@@ -37,6 +38,8 @@ async def lifespan(app: FastAPI):
     app.state.tool_router = ToolRouter()
     app.state.notifier = Notifier(working_memory=app.state.working_memory)
     app.state.browser_channel = get_channel()  # module-level singleton
+    from backend.bridge.colab_bridge import get_colab_bridge  # ← COLAB BRIDGE
+    app.state.colab_bridge = get_colab_bridge()               # ← COLAB BRIDGE
 
     print(f"✅  Friday backend ready → http://{settings.host}:{settings.port}")
     yield
@@ -73,6 +76,7 @@ app.include_router(memory.router)
 app.include_router(notify.router)
 app.include_router(browser_ws.router)
 app.include_router(chat.router)
+app.include_router(colab_ws.router)          # ← COLAB BRIDGE (remove to disable)
 
 
 # ── Health & Meta ────────────────────────────────────────────────────────────

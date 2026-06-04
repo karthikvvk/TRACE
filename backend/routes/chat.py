@@ -46,7 +46,17 @@ async def _sse_generator(
     tool_router,
     model: str | None,
 ) -> AsyncGenerator[str, None]:
-    """Wrap agent_stream events as SSE data lines."""
+    """Wrap agent events as SSE data lines. Routes through Colab brain if connected."""
+    # ── COLAB BRIDGE (remove this block to always use local agent) ────────────
+    from backend.config import settings
+    if settings.colab_mode:
+        from backend.bridge.colab_bridge import get_colab_bridge
+        bridge = get_colab_bridge()
+        if bridge.is_connected:
+            async for event in bridge.run_turn(message, history, tool_router):
+                yield f"data: {json.dumps(event)}\n\n"
+            return
+    # ── END COLAB BRIDGE ──────────────────────────────────────────────────────
     async for event in agent_stream(message, history, tool_router, model):
         yield f"data: {json.dumps(event)}\n\n"
 
@@ -85,9 +95,18 @@ async def chat_status(request: Request) -> dict:
     from backend.config import settings
 
     channel = get_channel()
+
+    # ── COLAB BRIDGE (remove this block if removing the feature) ─────────────
+    from backend.bridge.colab_bridge import get_colab_bridge
+    colab = get_colab_bridge()
+    colab_connected = colab.is_connected
+    # ── END COLAB BRIDGE ─────────────────────────────────────────────────────
+
     return {
         "agent": "ready",
         "browser_connected": channel.is_connected,
+        "colab_connected": colab_connected,       # ← COLAB BRIDGE
+        "colab_mode": settings.colab_mode,        # ← COLAB BRIDGE
         "model": settings.gemini_model,
         "script_execution_allowed": settings.allow_script_execution,
     }

@@ -11,6 +11,7 @@ from backend.tools.base import BaseTool
 from backend.tools.task_tool import CreateTaskTool, GetTasksTool, UpdateTaskTool, DeleteTaskTool
 from backend.tools.memory_tool import LogEventTool, QueryMemoryTool
 from backend.tools.search_tool import ExtractSearchIntentTool
+from backend.tools.web_fetch_tool import WebFetchTool
 from backend.tools.calendar_tool import GetCalendarEventsTool
 from backend.tools.terminal_access import CreateTerminalTool, WriteTerminalTool, ReadTerminalTool, KillTerminalTool
 from backend.tools.browser_tool import (
@@ -52,6 +53,7 @@ class ToolRouter:
             QueryMemoryTool(),
 
             ExtractSearchIntentTool(),
+            WebFetchTool(),
 
             GetCalendarEventsTool(),
 
