@@ -163,6 +163,11 @@ async function handleMessage(message, sender) {
  * The server can then request browser data on behalf of the agent.
  */
 function connectBrowserChannel() {
+  // Guard: don't open a second socket while one is already connecting or live.
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
   const url = `${WS_URL_BASE}?secret=${encodeURIComponent(EXTENSION_SECRET)}`;
   ws = new WebSocket(url);
 
@@ -193,7 +198,8 @@ function connectBrowserChannel() {
 
   ws.onclose = () => {
     wsConnected = false;
-    console.debug(`[Friday] Browser channel closed. Reconnecting in ${reconnectDelay}ms…`);
+    // Use debug level — a closed socket during reconnect is not an error.
+    console.debug(`[Friday] Browser channel closed. Retrying in ${reconnectDelay}ms…`);
     chrome.runtime.sendMessage({ type: "WS_STATUS", connected: false }).catch(() => {});
     setTimeout(() => {
       reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
@@ -201,14 +207,21 @@ function connectBrowserChannel() {
     }, reconnectDelay);
   };
 
-  ws.onerror = (err) => {
-    console.debug("[Friday] Browser channel error:", err.message ?? err);
-    // onclose fires after onerror — reconnect handled there
+  // ERR_CONNECTION_REFUSED is expected while the backend isn't running.
+  // Log at debug level so it doesn't appear in the Extensions error panel.
+  ws.onerror = () => {
+    console.debug("[Friday] Browser channel: backend unreachable, will retry.");
+    // onclose fires immediately after onerror — reconnect is handled there.
   };
 }
 
-// Start the browser channel when the service worker loads
-connectBrowserChannel();
+// NOTE: connectBrowserChannel() is intentionally NOT called here at module
+// scope.  It is called once by the onInstalled handler above.  Calling it
+// at module scope would trigger an extra connection attempt on every
+// service-worker wake-up (e.g. alarm ticks), causing spurious
+// ERR_CONNECTION_REFUSED errors in the Extensions panel when the backend
+// is offline.  The exponential-backoff reconnect loop inside onclose/onerror
+// keeps the connection alive after the initial call.
 
 /**
  * Dispatch an action from the server to the appropriate Chrome API
