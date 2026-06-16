@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Friday</title>
+  <title>Friday — TRACE Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -46,11 +46,11 @@
     #header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
     #status-dot {
       width: 7px; height: 7px; border-radius: 50%; background: #444;
-      margin-left: auto; transition: background 0.3s;
+      transition: background 0.3s; flex-shrink: 0;
     }
     #status-dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
     #status-dot.disconnected { background: var(--error); }
-    #status-label { font-size: 10px; color: var(--text-muted); }
+    #status-label { font-size: 10px; color: var(--text-muted); margin-left: auto; }
 
     /* ── Messages ── */
     #messages {
@@ -134,6 +134,36 @@
     @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Big-AGI overlay ── */
+    #bigagi-btn {
+      margin-left: auto; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: rgba(124,92,252,0.12); color: #a78bfa; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, color 0.2s; white-space: nowrap;
+      font-family: inherit;
+    }
+    #bigagi-btn:hover { background: rgba(124,92,252,0.28); color: white; }
+    #bigagi-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    #bigagi-overlay {
+      display: none; position: absolute; inset: 0; z-index: 100;
+      flex-direction: column;
+    }
+    #bigagi-overlay.visible { display: flex; }
+    #bigagi-overlay iframe {
+      flex: 1; border: none; width: 100%; height: 100%;
+      background: var(--bg);
+    }
+    #bigagi-status {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px;
+    }
+    #bigagi-status .big-icon { font-size: 36px; }
+    #bigagi-status a {
+      color: var(--accent); text-decoration: none; font-weight: 500;
+      padding: 6px 14px; border: 1px solid rgba(124,92,252,0.4); border-radius: 8px;
+    }
+    #bigagi-status a:hover { background: rgba(124,92,252,0.12); }
   </style>
 </head>
 <body>
@@ -143,6 +173,12 @@
     <h1>Friday</h1>
     <span id="status-label">connecting…</span>
     <div id="status-dot"></div>
+    <button id="bigagi-btn" title="Switch to Big-AGI UI">🚀 Big-AGI</button>
+  </div>
+
+  <!-- Big-AGI full UI overlay -->
+  <div id="bigagi-overlay">
+    <!-- Filled by JS: either an iframe or a "not running" notice -->
   </div>
 
   <div id="messages">
@@ -330,6 +366,90 @@ inputEl.addEventListener('keydown', (e) => {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+// ── Big-AGI Toggle ────────────────────────────────────────────────────────────
+const bigagiBtn     = document.getElementById('bigagi-btn');
+const bigagiOverlay = document.getElementById('bigagi-overlay');
+const BIGAGI_URL    = 'http://localhost:3000';
+
+let bigagiMode = false;
+let bigagiIframe = null;
+
+async function isBigAGIReachable() {
+  try {
+    const r = await fetch(BIGAGI_URL, { method: 'HEAD', mode: 'no-cors', signal: AbortSignal.timeout(2000) });
+    return true;   // no-cors always resolves (opaque response) if the server is up
+  } catch {
+    return false;
+  }
+}
+
+function showBigAGINotRunning() {
+  bigagiOverlay.innerHTML = `
+    <div id="header" style="display:flex;align-items:center;gap:10px;padding:14px 16px;
+        background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div class="logo" style="width:28px;height:28px;border-radius:8px;
+          background:linear-gradient(135deg,var(--accent),#a78bfa);
+          display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;">F</div>
+      <h1 style="font-size:15px;font-weight:600;">Friday</h1>
+      <button id="bigagi-back-btn" style="margin-left:auto;padding:5px 10px;border-radius:8px;
+          border:1px solid var(--border);background:rgba(124,92,252,0.12);color:#a78bfa;
+          font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">← Back to Chat</button>
+    </div>
+    <div id="bigagi-status">
+      <div class="big-icon">🚀</div>
+      <strong style="color:var(--text);font-size:15px;">Big-AGI is not running</strong>
+      <p>Start the frontend to use the full Big-AGI UI:</p>
+      <code style="background:var(--surface2);padding:8px 14px;border-radius:8px;font-size:12px;
+          border:1px solid var(--border);color:#a78bfa;">cd frontend &amp;&amp; npm run dev</code>
+      <p style="margin-top:4px;">Then click the button below.</p>
+      <a href="#" id="bigagi-retry-btn">Retry Connection</a>
+    </div>`;
+
+  document.getElementById('bigagi-back-btn').onclick = closeBigAGI;
+  document.getElementById('bigagi-retry-btn').onclick = async (e) => {
+    e.preventDefault();
+    await openBigAGI();
+  };
+}
+
+function showBigAGIFrame() {
+  if (!bigagiIframe) {
+    bigagiIframe = document.createElement('iframe');
+    bigagiIframe.src = BIGAGI_URL;
+    bigagiIframe.allow = 'clipboard-read; clipboard-write';
+    bigagiIframe.title = 'Big-AGI';
+  }
+  bigagiOverlay.innerHTML = '';
+  bigagiOverlay.appendChild(bigagiIframe);
+}
+
+async function openBigAGI() {
+  bigagiMode = true;
+  bigagiBtn.classList.add('active');
+  bigagiOverlay.classList.add('visible');
+  bigagiOverlay.innerHTML = `<div id="bigagi-status"><div class="big-icon">⏳</div><p>Connecting to Big-AGI…</p></div>`;
+
+  const reachable = await isBigAGIReachable();
+  if (reachable) {
+    showBigAGIFrame();
+  } else {
+    showBigAGINotRunning();
+  }
+}
+
+function closeBigAGI() {
+  bigagiMode = false;
+  bigagiBtn.classList.remove('active');
+  bigagiOverlay.classList.remove('visible');
+}
+
+bigagiBtn.addEventListener('click', () => {
+  if (bigagiMode) {
+    closeBigAGI();
+  } else {
+    openBigAGI();
+  }
 });
 </script>
 </body>

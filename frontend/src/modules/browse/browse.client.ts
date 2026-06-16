@@ -27,13 +27,17 @@ export async function callBrowseFetchPageOrThrow(
 
   const { wssEndpoint, pageTransform } = useBrowseStore.getState();
 
+  // Use 'browse-fetch' (native HTTP, no Puppeteer) when no WSS endpoint is configured.
+  // Automatically falls back to 'browse-wss' if the user has set a WSS endpoint.
+  const dialect = wssEndpoint ? 'browse-wss' : 'browse-fetch';
+
   // Connect to our service
   let streamingResponse: Awaited<ReturnType<typeof apiStreamNode.browse.fetchPagesStreaming.mutate>>;
   try {
     streamingResponse = await apiStreamNode.browse.fetchPagesStreaming.mutate({
       access: {
-        dialect: 'browse-wss',
-        ...(!!wssEndpoint && { wssEndpoint }),
+        dialect,
+        ...(dialect === 'browse-wss' && !!wssEndpoint && { wssEndpoint }),
       },
       requests: [{
         url,

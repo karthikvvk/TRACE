@@ -12,8 +12,8 @@ export interface DLocalAIServiceSettings {
 
 export const ModelVendorLocalAI: IModelVendor<DLocalAIServiceSettings, OpenAIAccessSchema> = {
   id: 'localai',
-  name: 'LocalAI',
-  displayRank: 50,
+  name: 'TRACE Agent',
+  displayRank: 1,           // show first in the vendor list
   displayGroup: 'local',
   location: 'local',
   instanceLimit: 4,
@@ -28,16 +28,18 @@ export const ModelVendorLocalAI: IModelVendor<DLocalAIServiceSettings, OpenAIAcc
 
   // functions
   initializeSetup: () => ({
-    localAIHost: '',
+    // Pre-fill with the TRACE / Friday backend URL so Big-AGI works out of the box
+    localAIHost: 'http://127.0.0.1:8000',
     localAIKey: '',
-    // csf: true, // eventually, but requires CORS support on the server: -e CORS=true -e CORS_ALLOW_ORIGINS="*"
+    csf: true,  // client-side-fetch: browser calls TRACE backend directly (no Next.js proxy)
   }),
   getTransportAccess: (partialSetup) => ({
     dialect: 'localai',
-    clientSideFetch: _csfLocalAIAvailable(partialSetup) && !!partialSetup?.csf,
+    // Default csf=true for TRACE; always enabled when the host is 127.0.0.1
+    clientSideFetch: _csfLocalAIAvailable(partialSetup) && (partialSetup?.csf !== false),
     oaiKey: partialSetup?.localAIKey || '',
     oaiOrg: '',
-    oaiHost: partialSetup?.localAIHost || '',
+    oaiHost: partialSetup?.localAIHost || 'http://127.0.0.1:8000',
     heliKey: '',
   }),
 
@@ -47,7 +49,6 @@ export const ModelVendorLocalAI: IModelVendor<DLocalAIServiceSettings, OpenAIAcc
 };
 
 function _csfLocalAIAvailable(_s?: Partial<DLocalAIServiceSettings>) {
-  // always available for local vendors - CSF falls back to DEFAULT_LOCALAI_HOST (http://127.0.0.1:8080)
-  // was: return !!s?.localAIHost;
+  // CSF is always available for local vendors — the browser reaches TRACE directly.
   return true;
 }

@@ -24,6 +24,7 @@ from backend.engine.notifier import Notifier
 from backend.ws.manager import get_channel
 from backend.routes import activity, tasks, memory, notify
 from backend.routes import browser_ws, chat
+from backend.routes import openai_compat        # ← Big-AGI / OpenAI-compat layer
 from backend.routes import colab_ws          # ← COLAB BRIDGE (remove to disable)
 
 
@@ -61,9 +62,11 @@ if _UI_DIR.is_dir():
     app.mount("/ui", StaticFiles(directory=_UI_DIR, html=True), name="ui")
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
+# Allow the Chrome extension origin AND Big-AGI running on localhost:3000
+_cors_origins = [settings.extension_origin, "http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.extension_origin],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +79,7 @@ app.include_router(memory.router)
 app.include_router(notify.router)
 app.include_router(browser_ws.router)
 app.include_router(chat.router)
+app.include_router(openai_compat.router)         # ← /v1/models  +  /v1/chat/completions
 app.include_router(colab_ws.router)          # ← COLAB BRIDGE (remove to disable)
 
 

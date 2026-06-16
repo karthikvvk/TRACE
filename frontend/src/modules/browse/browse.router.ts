@@ -24,8 +24,12 @@ type PageTransformSchema = z.infer<typeof pageTransformSchema>;
 
 const fetchPageInputSchema = z.object({
   access: z.object({
-    dialect: z.enum(['browse-wss']),
+    // 'browse-wss' = Puppeteer via remote browser endpoint (original)
+    // 'browse-fetch' = direct HTTP fetch + HTML parsing (no Puppeteer needed)
+    dialect: z.enum(['browse-wss', 'browse-fetch']),
     wssEndpoint: z.string().trim().optional(),
+    // For browse-fetch: optional proxy through TRACE backend scraper
+    traceBackendUrl: z.string().trim().optional(),
   }),
   requests: z.array(z.object({
     url: z.url(),
@@ -73,6 +77,24 @@ export const browseRouter = createTRPCRouter({
     .input(fetchPageInputSchema)
     .mutation(async function* ({ input: { access, requests } }) {
 
+      // ── browse-fetch: direct HTTP fetch (no Puppeteer) ─────────────────────
+      if (access.dialect === 'browse-fetch') {
+        yield { type: 'ack-start' as const };
+
+        const pages: FetchPageWorkerOutputSchema[] = await Promise.all(
+          requests.map(req => workerFetch(req.url, req.transforms)),
+        );
+
+        yield {
+          type: 'result' as const,
+          pages,
+          workerHost: 'localhost (fetch)',
+        };
+        return;
+      }
+
+      // ── browse-wss: Puppeteer via remote browser endpoint (original) ───────
+
       // get endpoint
       const endpoint = (access.wssEndpoint || env.PUPPETEER_WSS_ENDPOINT || '').trim();
       if (!endpoint || (!endpoint.startsWith('wss://') && !endpoint.startsWith('ws://')))
@@ -118,6 +140,77 @@ export const browseRouter = createTRPCRouter({
     }),
 
 });
+
+
+/**
+ * workerFetch — lightweight page fetcher using Node's built-in fetch + Cheerio/Turndown.
+ * No Puppeteer or WSS endpoint required; used by the 'browse-fetch' dialect.
+ * JavaScript-rendered content won't be visible, but works for most static pages.
+ */
+async function workerFetch(
+  targetUrl: string,
+  transforms: PageTransformSchema[],
+): Promise<FetchPageWorkerOutputSchema> {
+  const result: FetchPageWorkerOutputSchema = {
+    url: targetUrl,
+    title: '',
+    content: undefined,
+    file: undefined,
+    error: undefined,
+    stopReason: 'error',
+    screenshot: undefined,
+  };
+
+  try {
+    const res = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TRACE-Agent/1.0)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      // Node 18+ supports AbortSignal.timeout
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) {
+      result.error = `HTTP ${res.status} ${res.statusText}`;
+      return result;
+    }
+
+    const html = await res.text();
+    const _C = cheerioLoad(html);
+
+    // Extract title
+    result.title = _C('title').first().text().trim() || '';
+
+    result.stopReason = 'end';
+    result.content = {};
+
+    for (const transform of transforms) {
+      switch (transform) {
+        case 'html':
+          result.content.html = cleanHtml(html);
+          break;
+        case 'text':
+          // Strip all tags, collapse whitespace
+          result.content.text = _C('body').text().replace(/\s+/g, ' ').trim();
+          break;
+        case 'markdown': {
+          const cleanedHtml = cleanHtml(html);
+          const td = new TurndownService({ headingStyle: 'atx' });
+          result.content.markdown = td.turndown(cleanedHtml);
+          break;
+        }
+      }
+    }
+  } catch (err: any) {
+    const isTimeout = err?.name === 'TimeoutError' || err?.message?.includes('timeout');
+    result.stopReason = isTimeout ? 'timeout' : 'error';
+    if (!isTimeout)
+      result.error = '[Fetch] ' + (err?.message || String(err));
+  }
+
+  return result;
+}
 
 
 async function workerPuppeteer(
