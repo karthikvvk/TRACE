@@ -18,7 +18,7 @@ const CHECK_INTERVAL_MINUTES = 10;
 
 // ── Browser channel config ────────────────────────────────────────────────────
 
-const WS_URL_BASE = "ws://localhost:8000/ws/browser";
+const WS_URL_BASE = "ws://127.0.0.1:8000/ws/browser";
 // The secret must match EXTENSION_SECRET in the server's .env.
 // In production, store this in chrome.storage.local after user setup.
 const EXTENSION_SECRET = "change-me-in-production";
@@ -38,6 +38,12 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 
   chrome.sidePanel.setOptions({ enabled: true });
+  connectBrowserChannel();
+});
+
+// Reconnect when Chrome starts (service worker was killed on browser close)
+chrome.runtime.onStartup.addListener(() => {
+  console.log("[Friday] Browser started — reconnecting channel.");
   connectBrowserChannel();
 });
 
@@ -83,6 +89,11 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== ALARM_NAME) return;
 
+  // Service worker just woke up for an alarm — reconnect if the socket died
+  // while the worker was suspended (setTimeout reconnect loop doesn't survive
+  // suspension, so we must re-trigger here).
+  connectBrowserChannel();
+
   try {
     const data = await get("/notify/pending");
     const items = data?.items ?? [];
@@ -113,6 +124,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // ── Message routing ───────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Service worker woke up to handle a message — ensure the WS channel is up.
+  connectBrowserChannel();
+
   handleMessage(message, sender).then(sendResponse).catch((err) => {
     sendResponse({ error: err.message });
   });
@@ -215,13 +229,10 @@ function connectBrowserChannel() {
   };
 }
 
-// NOTE: connectBrowserChannel() is intentionally NOT called here at module
-// scope.  It is called once by the onInstalled handler above.  Calling it
-// at module scope would trigger an extra connection attempt on every
-// service-worker wake-up (e.g. alarm ticks), causing spurious
-// ERR_CONNECTION_REFUSED errors in the Extensions panel when the backend
-// is offline.  The exponential-backoff reconnect loop inside onclose/onerror
-// keeps the connection alive after the initial call.
+// NOTE: connectBrowserChannel() is intentionally NOT called at module scope.
+// It is called from onInstalled, onStartup, the alarm handler, and the message
+// listener — all reliable wake-up points that survive service worker suspension.
+// The guard inside connectBrowserChannel() prevents opening duplicate sockets.
 
 /**
  * Dispatch an action from the server to the appropriate Chrome API

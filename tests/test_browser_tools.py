@@ -27,7 +27,7 @@ import socket
 
 import pytest
 import pytest_asyncio
-import websockets
+from websockets.asyncio.client import connect as ws_connect
 
 from backend.ws.manager import get_channel
 from backend.config import settings
@@ -130,7 +130,7 @@ class FakeExtension:
     async def _run(self, server_url: str) -> None:
         uri = f"{server_url}/ws/browser?secret={self.secret}"
         try:
-            async with websockets.connect(uri) as ws:
+            async with ws_connect(uri) as ws:
                 self._ws = ws
                 self._ready.set()
                 async for raw in ws:
@@ -265,7 +265,7 @@ class TestBrowserToolsConnected:
         class RecordingExtension(FakeExtension):
             async def _run(self, url: str) -> None:
                 uri = f"{url}/ws/browser?secret={self.secret}"
-                async with websockets.connect(uri) as ws:
+                async with ws_connect(uri) as ws:
                     self._ws = ws
                     self._ready.set()
                     async for raw in ws:
@@ -359,7 +359,7 @@ class TestBrowserToolsConnected:
         class SilentExtension(FakeExtension):
             async def _run(self, url: str) -> None:
                 uri = f"{url}/ws/browser?secret={self.secret}"
-                async with websockets.connect(uri) as ws:
+                async with ws_connect(uri) as ws:
                     self._ws = ws
                     self._ready.set()
                     # Accept requests but never reply
