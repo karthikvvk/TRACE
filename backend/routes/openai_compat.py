@@ -23,7 +23,7 @@ import json
 import logging
 import time
 import uuid
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -48,35 +48,91 @@ class _ModelObject(BaseModel):
 
 @router.get("/models", summary="List available TRACE / Friday models")
 async def list_models() -> dict:
-    """Return a minimal OpenAI-format model list so Big-AGI can auto-detect."""
+    """
+    Return an OpenAI-format model list for Big-AGI.
+
+    When USE_LLM=true: proxies the actual model list from LM Studio/Ollama so Big-AGI
+    shows the user's real local models. All chat requests still go through the TRACE
+    agent wrapper which injects full tool-calling support.
+
+    When USE_LLM=false: returns the configured Gemini model.
+    """
+    import httpx as _httpx
+
     now = int(time.time())
-    models: list[dict] = []
+
+    # Route through Colab brain if connected and colab_mode is True
+    if settings.colab_mode:
+        from backend.bridge.colab_bridge import get_colab_bridge
+        bridge = get_colab_bridge()
+        if bridge.is_connected:
+            return {"object": "list", "data": [{
+                "id": "colab-brain",
+                "object": "model",
+                "created": now,
+                "owned_by": "friday-colab",
+            }]}
 
     if settings.use_llm:
-        # Local LLM mode — surface the configured model name
-        models.append({
+        # Proxy model list from the local LLM server so Big-AGI sees real model names
+        try:
+            async with _httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(f"{settings.ollama_base_url.rstrip('/')}/models")
+                resp.raise_for_status()
+                upstream = resp.json()
+                # Stamp all upstream models as coming through Friday
+                models = []
+                for m in upstream.get("data", []):
+                    models.append({
+                        "id": m.get("id", m.get("name", "unknown")),
+                        "object": "model",
+                        "created": m.get("created", now),
+                        "owned_by": "friday-local",
+                    })
+                if models:
+                    return {"object": "list", "data": models}
+        except Exception:
+            pass  # LM Studio offline — fall back to configured name
+
+        # Fallback: just return the configured model name
+        return {"object": "list", "data": [{
             "id": settings.ollama_model,
             "object": "model",
             "created": now,
             "owned_by": "friday-local",
-        })
+        }]}
     else:
-        # Gemini mode — surface as a pseudo-model so the user can pick it
-        models.append({
+        # Gemini mode
+        return {"object": "list", "data": [{
             "id": settings.gemini_model,
             "object": "model",
             "created": now,
             "owned_by": "friday-gemini",
-        })
-
-    return {"object": "list", "data": models}
+        }]}
 
 
 # ── /v1/chat/completions ──────────────────────────────────────────────────────
 
+def _get_content_text(content: Any) -> str:
+    """Normalize OpenAI rich/multimodal content payload into a plain string."""
+    if not content:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                parts.append(part.get("text", ""))
+            elif isinstance(part, str):
+                parts.append(part)
+        return "".join(parts)
+    return str(content)
+
+
 class _Message(BaseModel):
     role: str
-    content: str | None = None
+    content: Any = None
 
 
 class _ChatRequest(BaseModel):
@@ -139,21 +195,35 @@ async def _stream_generator(
         # Nothing to do
         return
 
-    message = messages[last_user_idx].content or ""
+    message = _get_content_text(messages[last_user_idx].content)
     history: list[dict] = []
     for m in messages[:last_user_idx]:
         role = "model" if m.role == "assistant" else m.role
-        history.append({"role": role, "content": m.content or ""})
+        history.append({"role": role, "content": _get_content_text(m.content)})
 
     chunk_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-    model_name = request.model or (settings.ollama_model if settings.use_llm else settings.gemini_model)
+
+    # Route through Colab brain if connected and colab_mode is True
+    use_colab = False
+    if settings.colab_mode:
+        from backend.bridge.colab_bridge import get_colab_bridge
+        bridge = get_colab_bridge()
+        if bridge.is_connected:
+            use_colab = True
+
+    if use_colab:
+        model_name = request.model or "colab-brain"
+        stream = bridge.run_turn(message, history, tool_router)
+    else:
+        model_name = request.model or (settings.ollama_model if settings.use_llm else settings.gemini_model)
+        stream = agent_stream(message, history, tool_router, request.model)
 
     # Opening chunk (role announcement)
     yield _make_chunk(chunk_id, delta_content=None, model=model_name)
 
     accumulated_text = ""
     try:
-        async for event in agent_stream(message, history, tool_router, request.model):
+        async for event in stream:
             etype = event.get("type")
             if etype == "text":
                 content = event.get("content", "")

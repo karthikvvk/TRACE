@@ -5,7 +5,7 @@
 # ── Install (run once) ────────────────────────────────────────────────────────
 # !pip install -q transformers accelerate bitsandbytes websockets nest_asyncio
 
-import asyncio, json, logging
+import asyncio, json, logging, os
 import nest_asyncio
 nest_asyncio.apply()
 import websockets
@@ -116,6 +116,20 @@ SYSTEM_PROMPT = (
 )
 
 
+_router = None
+
+def _get_router():
+    global _router
+    if _router is None and os.path.exists("router.pt"):
+        try:
+            from router_classifier import RouterClassifier
+            _router = RouterClassifier.load("router.pt")
+            logger.info("Loaded RouterClassifier from router.pt")
+        except Exception as e:
+            logger.warning("Failed to load RouterClassifier: %s", e)
+    return _router
+
+
 async def run_turn_local(ws, turn_id: str, message: str, history: list[dict], tools: list[dict]) -> None:
     """Run one agent turn using the local Qwen model."""
     # Build message history
@@ -124,11 +138,29 @@ async def run_turn_local(ws, turn_id: str, message: str, history: list[dict], to
         messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
     messages.append({"role": "user", "content": message})
 
+    # Apply RouterClassifier if available
+    filtered_tools = tools
+    router = _get_router()
+    if router is not None:
+        try:
+            predicted = router.predict(message)
+            if predicted:
+                temp_filtered = [t for t in tools if t["function"]["name"] in predicted]
+                if temp_filtered:
+                    filtered_tools = temp_filtered
+                    logger.info("RouterClassifier predicted tools: %s. Filtered from %d to %d tools.", predicted, len(tools), len(filtered_tools))
+                else:
+                    logger.info("RouterClassifier predicted tools %s, but none matched available tool schemas. Using all tools.", predicted)
+            else:
+                logger.info("RouterClassifier predicted no tools. Using all tools as fallback.")
+        except Exception as e:
+            logger.warning("Error running RouterClassifier prediction: %s", e)
+
     try:
         # Agentic loop — keep going until no more tool calls
         while True:
             output = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: _generate(messages, tools)
+                None, lambda: _generate(messages, filtered_tools)
             )
             logger.info("[Turn %s] Model output: %s…", turn_id[:8], output[:120])
 
@@ -136,6 +168,14 @@ async def run_turn_local(ws, turn_id: str, message: str, history: list[dict], to
             if parsed:
                 name, args = parsed
                 logger.info("[Turn %s] Tool call: %s(%s)", turn_id[:8], name, args)
+
+                # Log the confirmed tool call for future training
+                try:
+                    from router_classifier import ToolCallLogger
+                    ToolCallLogger("tool_calls.jsonl").log(message, [name])
+                    logger.info("[Turn %s] Logged tool call: %s to tool_calls.jsonl", turn_id[:8], name)
+                except Exception as e:
+                    logger.warning("Failed to log tool call: %s", e)
 
                 # Send tool_call to local machine
                 await ws.send(json.dumps({
@@ -167,6 +207,7 @@ async def run_turn_local(ws, turn_id: str, message: str, history: list[dict], to
         await ws.send(json.dumps({"type": "error", "id": turn_id, "content": str(exc)}))
     finally:
         await ws.send(json.dumps({"type": "done", "id": turn_id}))
+
 
 
 async def brain_loop_local():
