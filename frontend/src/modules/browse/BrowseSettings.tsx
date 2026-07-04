@@ -23,13 +23,16 @@ export function BrowseSettings() {
   const { mayWork, isServerConfig, isClientValid, inComposer, inReact, inPersonas } = useBrowseCapability();
   const {
     wssEndpoint, setWssEndpoint,
+    traceBackendUrl, setTraceBackendUrl,
     pageTransform, setPageTransform,
     setEnableComposerAttach, setEnableReactTool, setEnablePersonaTool,
   } = useBrowseStore(useShallow(state => ({
     wssEndpoint: state.wssEndpoint,
+    traceBackendUrl: state.traceBackendUrl,
     pageTransform: state.pageTransform,
     setPageTransform: state.setPageTransform,
     setWssEndpoint: state.setWssEndpoint,
+    setTraceBackendUrl: state.setTraceBackendUrl,
     setEnableComposerAttach: state.setEnableComposerAttach,
     setEnableReactTool: state.setEnableReactTool,
     setEnablePersonaTool: state.setEnablePersonaTool,
@@ -51,6 +54,17 @@ export function BrowseSettings() {
       required={!isServerConfig} isError={!isClientValid && !isServerConfig}
       placeholder='wss://...'
     />
+
+    <FormInputKey
+      autoCompleteId='trace-backend-url' label='TRACE Backend URL' noKey
+      value={traceBackendUrl} onChange={setTraceBackendUrl}
+      rightLabel={<AlreadySet required={false} />}
+      placeholder='http://localhost:8000'
+    />
+    <Typography level='body-xs' sx={{ mt: -0.5, color: 'text.tertiary' }}>
+      Local TRACE agent backend for scraping (extension or httpx fallback).
+      Used when no Puppeteer WSS is configured.
+    </Typography>
 
 
     <FormControl orientation='horizontal' sx={{ justifyContent: 'space-between', alignItems: 'center' }}>

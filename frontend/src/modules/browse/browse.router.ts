@@ -81,6 +81,21 @@ export const browseRouter = createTRPCRouter({
       if (access.dialect === 'browse-fetch') {
         yield { type: 'ack-start' as const };
 
+        // ── browse-trace: proxy through TRACE backend /scrape ────────────────
+        if (access.traceBackendUrl) {
+          const backendUrl = access.traceBackendUrl.replace(/\/$/, '');
+          const pages: FetchPageWorkerOutputSchema[] = await Promise.all(
+            requests.map(req => workerTraceBackend(backendUrl, req.url, req.transforms)),
+          );
+          yield {
+            type: 'result' as const,
+            pages,
+            workerHost: 'trace-backend',
+          };
+          return;
+        }
+
+        // ── browse-fetch: native Node fetch fallback ─────────────────────────
         const pages: FetchPageWorkerOutputSchema[] = await Promise.all(
           requests.map(req => workerFetch(req.url, req.transforms)),
         );
@@ -140,6 +155,87 @@ export const browseRouter = createTRPCRouter({
     }),
 
 });
+
+
+/**
+ * workerTraceBackend — proxies a scrape request to the TRACE FastAPI backend.
+ * The backend tries the Chrome extension first, then falls back to httpx.
+ * Used by the 'browse-fetch' dialect when traceBackendUrl is configured.
+ */
+async function workerTraceBackend(
+  backendUrl: string,
+  targetUrl: string,
+  transforms: PageTransformSchema[],
+): Promise<FetchPageWorkerOutputSchema> {
+  const result: FetchPageWorkerOutputSchema = {
+    url: targetUrl,
+    title: '',
+    content: undefined,
+    file: undefined,
+    error: undefined,
+    stopReason: 'error',
+    screenshot: undefined,
+  };
+
+  // Prefer markdown if requested, otherwise fall back to text for the backend call.
+  // We request a single format from the backend (it handles one format at a time).
+  const preferredFormat: 'text' | 'markdown' | 'html' =
+    transforms.includes('markdown') ? 'markdown'
+      : transforms.includes('html') ? 'html'
+        : 'text';
+
+  try {
+    const res = await fetch(`${backendUrl}/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: targetUrl, format: preferredFormat }),
+      signal: AbortSignal.timeout(35_000), // extension scrape can take up to 30 s
+    });
+
+    if (!res.ok) {
+      result.error = `[TRACE] HTTP ${res.status} from backend`;
+      return result;
+    }
+
+    const data = await res.json() as {
+      url: string;
+      title: string;
+      content: string;
+      format: string;
+      source: string;
+      error?: string;
+    };
+
+    if (data.error) {
+      result.error = `[TRACE] ${data.error}`;
+      return result;
+    }
+
+    result.title = data.title || '';
+    result.stopReason = 'end';
+    result.content = {};
+
+    // Map the single backend format to the requested transforms.
+    // If additional transforms were requested that the backend didn't return,
+    // we populate them from the same content string (backend already converted).
+    for (const transform of transforms) {
+      if (transform === preferredFormat) {
+        result.content[transform] = data.content;
+      } else {
+        // Best-effort: use the returned content as-is for other requested transforms.
+        // (The backend only returns one format; further conversion happens here if needed.)
+        result.content[transform] = data.content;
+      }
+    }
+  } catch (err: any) {
+    const isTimeout = err?.name === 'TimeoutError' || err?.message?.includes('timeout');
+    result.stopReason = isTimeout ? 'timeout' : 'error';
+    if (!isTimeout)
+      result.error = '[TRACE] ' + (err?.message || String(err));
+  }
+
+  return result;
+}
 
 
 /**

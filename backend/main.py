@@ -26,6 +26,7 @@ from backend.routes import activity, tasks, memory, notify
 from backend.routes import browser_ws, chat
 from backend.routes import openai_compat        # ← Big-AGI / OpenAI-compat layer
 from backend.routes import colab_ws          # ← COLAB BRIDGE (remove to disable)
+from backend.routes import scrape            # ← REST scraping endpoint (extension + httpx fallback)
 
 
 @asynccontextmanager
@@ -81,6 +82,7 @@ app.include_router(browser_ws.router)
 app.include_router(chat.router)
 app.include_router(openai_compat.router)         # ← /v1/models  +  /v1/chat/completions
 app.include_router(colab_ws.router)          # ← COLAB BRIDGE (remove to disable)
+app.include_router(scrape.router)            # ← POST /scrape (extension + httpx fallback)
 
 
 # ── Health & Meta ────────────────────────────────────────────────────────────

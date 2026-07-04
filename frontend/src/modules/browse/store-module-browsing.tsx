@@ -12,6 +12,10 @@ interface BrowseState {
   wssEndpoint: string;
   setWssEndpoint: (url: string) => void;
 
+  // TRACE backend URL for proxied scraping (extension + httpx fallback)
+  traceBackendUrl: string;
+  setTraceBackendUrl: (url: string) => void;
+
   pageTransform: BrowsePageTransform;
   setPageTransform: (transform: BrowsePageTransform) => void;
 
@@ -32,6 +36,9 @@ export const useBrowseStore = create<BrowseState>()(
 
       wssEndpoint: '', // default WSS endpoint
       setWssEndpoint: (wssEndpoint: string) => set(() => ({ wssEndpoint })),
+
+      traceBackendUrl: '', // TRACE backend URL (e.g. http://localhost:8000)
+      setTraceBackendUrl: (traceBackendUrl: string) => set(() => ({ traceBackendUrl })),
 
       pageTransform: 'text',
       setPageTransform: (pageTransform: BrowsePageTransform) => set(() => ({ pageTransform })),
@@ -56,14 +63,16 @@ export const useBrowseStore = create<BrowseState>()(
 export function useBrowseCapability(): CapabilityBrowsing {
   // server config
   const isServerConfig = getBackendCapabilities().hasBrowsing;
+  const hasTraceBackend = getBackendCapabilities().hasTraceBackend;
 
   // external client state
-  const { wssEndpoint, enableComposerAttach, enableReactTool, enablePersonaTool } = useBrowseStore();
+  const { wssEndpoint, traceBackendUrl, enableComposerAttach, enableReactTool, enablePersonaTool } = useBrowseStore();
 
   // derived state
   const isClientConfig = !!wssEndpoint;
   const isClientValid = (wssEndpoint?.startsWith('wss://') && wssEndpoint?.length > 10) || (wssEndpoint?.startsWith('ws://') && wssEndpoint?.length > 9);
-  const mayWork = isServerConfig || (isClientConfig && isClientValid);
+  const hasClientTraceBackend = !!traceBackendUrl && traceBackendUrl.startsWith('http');
+  const mayWork = isServerConfig || (isClientConfig && isClientValid) || hasClientTraceBackend || hasTraceBackend;
 
   return {
     mayWork,

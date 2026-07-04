@@ -25,10 +25,9 @@ export async function callBrowseFetchPageOrThrow(
   if (!url.startsWith('http://') && !url.startsWith('https://'))
     url = 'https://' + url;
 
-  const { wssEndpoint, pageTransform } = useBrowseStore.getState();
+  const { wssEndpoint, traceBackendUrl, pageTransform } = useBrowseStore.getState();
 
-  // Use 'browse-fetch' (native HTTP, no Puppeteer) when no WSS endpoint is configured.
-  // Automatically falls back to 'browse-wss' if the user has set a WSS endpoint.
+  // Priority: WSS (Puppeteer) > browse-fetch with TRACE backend > plain fetch
   const dialect = wssEndpoint ? 'browse-wss' : 'browse-fetch';
 
   // Connect to our service
@@ -38,6 +37,9 @@ export async function callBrowseFetchPageOrThrow(
       access: {
         dialect,
         ...(dialect === 'browse-wss' && !!wssEndpoint && { wssEndpoint }),
+        // Pass traceBackendUrl only for browse-fetch dialect so the router
+        // proxies the call through the TRACE backend instead of using Node fetch.
+        ...(dialect === 'browse-fetch' && !!traceBackendUrl && { traceBackendUrl }),
       },
       requests: [{
         url,

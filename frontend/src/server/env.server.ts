@@ -101,6 +101,9 @@ export const env = createEnv({
 
     // Browsing Service
     PUPPETEER_WSS_ENDPOINT: z.url().optional(),
+    // TRACE backend URL for proxying scrape requests (extension + httpx fallback)
+    // e.g. http://localhost:8000
+    TRACE_BACKEND_URL: z.url().optional(),
 
     // Google Custom Search
     GOOGLE_CLOUD_API_KEY: z.string().optional(),
