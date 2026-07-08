@@ -5,3 +5,4 @@ virtual/
 __pycache__/
 dump/
 .env
+*.db

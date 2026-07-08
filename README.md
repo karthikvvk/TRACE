@@ -72,6 +72,8 @@ pip install -r requirements.txt
 uvicorn backend.main:app --reload --port 8000
 ```
 
+Load the LLM from LMStudio
+
 The server initialises the SQLite database on first run. No migrations needed.
 
 ### 2. Extension
@@ -92,41 +94,41 @@ pytest tests/ -v
 
 ## API Reference
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Health check |
-| GET | `/tools` | List all registered tools |
-| GET | `/context` | Current working memory snapshot |
-| POST | `/activity` | Receive a browser event |
-| GET | `/tasks` | List tasks (`?status=pending`) |
-| POST | `/tasks` | Create a task |
-| PATCH | `/tasks/{id}` | Update a task |
-| DELETE | `/tasks/{id}` | Delete a task |
-| POST | `/tasks/{id}/done` | Mark done |
-| POST | `/tasks/{id}/snooze` | Snooze |
-| GET | `/memory/events` | Query episodic events |
-| GET | `/memory/facts` | All semantic user facts |
-| GET | `/notify/pending` | Items to surface right now |
-| POST | `/notify/dismiss/{id}` | Dismiss a notification |
+| Method | Path                   | Description                     |
+| ------ | ---------------------- | ------------------------------- |
+| GET    | `/`                    | Health check                    |
+| GET    | `/tools`               | List all registered tools       |
+| GET    | `/context`             | Current working memory snapshot |
+| POST   | `/activity`            | Receive a browser event         |
+| GET    | `/tasks`               | List tasks (`?status=pending`)  |
+| POST   | `/tasks`               | Create a task                   |
+| PATCH  | `/tasks/{id}`          | Update a task                   |
+| DELETE | `/tasks/{id}`          | Delete a task                   |
+| POST   | `/tasks/{id}/done`     | Mark done                       |
+| POST   | `/tasks/{id}/snooze`   | Snooze                          |
+| GET    | `/memory/events`       | Query episodic events           |
+| GET    | `/memory/facts`        | All semantic user facts         |
+| GET    | `/notify/pending`      | Items to surface right now      |
+| POST   | `/notify/dismiss/{id}` | Dismiss a notification          |
 
 ---
 
 ## Build Phases
 
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 1 | Memory + Chat Tasks — SQLite, task CRUD, proactive alarm loop | ✅ **This build** |
-| 2 | Passive Observation — history, navigation, intent cross-ref | 🔜 |
-| 3 | Privacy Layer — Presidio PII stripping, pseudonymisation | 🔜 |
-| 4 | Local LLM — Ollama intent parsing + natural language tasks | 🔜 |
-| 5 | Calendar — Google Calendar OAuth + meeting briefings | 🔜 |
+| Phase | Scope                                                         | Status            |
+| ----- | ------------------------------------------------------------- | ----------------- |
+| 1     | Memory + Chat Tasks — SQLite, task CRUD, proactive alarm loop | ✅ **This build** |
+| 2     | Passive Observation — history, navigation, intent cross-ref   | 🔜                |
+| 3     | Privacy Layer — Presidio PII stripping, pseudonymisation      | 🔜                |
+| 4     | Local LLM — Ollama intent parsing + natural language tasks    | 🔜                |
+| 5     | Calendar — Google Calendar OAuth + meeting briefings          | 🔜                |
 
 ---
 
 ## Privacy Model
 
 - **Nothing leaves the device.** All data stays in SQLite on your machine.
-- Raw URLs and text are anonymised *before* any storage write.
+- Raw URLs and text are anonymised _before_ any storage write.
 - PII stripping uses regex at Phase 1 and upgrades to [Microsoft Presidio](https://github.com/microsoft/presidio) at Phase 3.
 - Exact timestamps are never stored — only fuzzy time buckets (morning / afternoon / evening / night).
 - Sensitive permissions (`scripting`, `history`) are requested with justification and only used for semantic abstraction, never for raw data export.
