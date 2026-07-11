@@ -11,8 +11,6 @@ import GrainIcon from '@mui/icons-material/Grain';
 import IosShareIcon from '@mui/icons-material/IosShare';
 import IosShareOutlinedIcon from '@mui/icons-material/IosShareOutlined';
 // Link icons
-import GitHubIcon from '@mui/icons-material/GitHub';
-import { DiscordIcon } from '~/common/components/icons/3rdparty/DiscordIcon';
 // Modal icons
 import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -92,17 +90,7 @@ export const navItems: {
       type: 'app',
       route: '/',
     },
-    {
-      name: 'Call',
-      barTitle: 'Voice Calls',
-      icon: CallOutlinedIcon,
-      iconActive: CallIcon,
-      type: 'app',
-      route: '/call',
-      hideDrawer: true,
-      panelAsMenu: true,
-      fullWidth: true,
-    },
+
     // {
     //   name: 'Draw',
     //   icon: FormatPaintOutlinedIcon,
@@ -179,15 +167,7 @@ export const navItems: {
       hideIcon: true,
       isDev: true,
     },
-    {
-      name: 'Beam',
-      icon: ChatBeamIcon,
-      type: 'app',
-      route: '/dev/beam',
-      hideDrawer: true,
-      hideIcon: true,
-      isDev: true,
-    },
+
     // {
     //   name: 'Media Library',
     //   icon: ImageOutlinedIcon,
@@ -210,16 +190,7 @@ export const navItems: {
       hideIcon: hasNoChatLinkItems,
       hideNav: hasNoChatLinkItems,
     },
-    {
-      name: 'News',
-      icon: EventNoteOutlinedIcon,
-      iconActive: EventNoteIcon,
-      type: 'app',
-      route: '/news',
-      hideBar: true,
-      hideDrawer: true,
-      hideOnMobile: true,
-    },
+
   ],
 
   // Modals
@@ -246,18 +217,6 @@ export const navItems: {
     //   icon: TwitterIcon,
     //   href: 'https://twitter.com',
     // },
-    {
-      type: 'extLink',
-      name: 'Discord',
-      icon: DiscordIcon,
-      href: Brand.URIs.SupportInvite,
-    },
-    {
-      type: 'extLink',
-      name: 'GitHub',
-      icon: GitHubIcon,
-      href: Brand.URIs.OpenRepo,
-    },
   ],
 
 };

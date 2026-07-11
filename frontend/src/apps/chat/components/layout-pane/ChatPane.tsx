@@ -172,10 +172,7 @@ export function ChatPane(props: {
         {/* Right column */}
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
 
-          <MenuItem disabled={props.disableItems} onClick={handleConversationFlatten}>
-            <ListItemDecorator><CompressIcon /></ListItemDecorator>
-            Compact
-          </MenuItem>
+
 
           <MenuItem disabled={props.disableItems} onClick={handleConversationRestart}>
             <ListItemDecorator><RestartAltIcon /></ListItemDecorator>

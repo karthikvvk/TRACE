@@ -35,7 +35,7 @@ import { createTextContentFragment, DMessageAttachmentFragment, DMessageContentF
 import { glueForMessageTokens, marshallWrapDocFragments } from '~/common/stores/chat/chat.tokens';
 import { isValidConversation, useChatStore } from '~/common/stores/chat/store-chats';
 import { getModelParameterValueWithFallback } from '~/common/stores/llms/llms.parameters';
-import { launchAppCall, removeQueryParam, useRouterQuery } from '~/common/app.routes';
+import { removeQueryParam, useRouterQuery } from '~/common/app.routes';
 import { lineHeightTextareaMd, themeBgAppChatComposer } from '~/common/app.theme';
 import { optimaOpenPreferences } from '~/common/layout/optima/useOptima';
 import { supportsCameraCapture } from '~/common/components/camera/useCameraCapture';
@@ -468,7 +468,7 @@ export function Composer(props: {
   // Secondary buttons
 
   const handleCallClicked = React.useCallback(() => {
-    targetConversationId && systemPurposeId && launchAppCall(targetConversationId, systemPurposeId);
+    // targetConversationId && systemPurposeId && launchAppCall(targetConversationId, systemPurposeId);
   }, [systemPurposeId, targetConversationId]);
 
   const handleDrawOptionsClicked = React.useCallback(() => optimaOpenPreferences('draw'), []);
@@ -966,8 +966,8 @@ export function Composer(props: {
                 {/* [mobile] bottom-corner secondary button */}
                 {isMobile && (showChatExtras
                     ? (composerQuickButton === 'call' && speechMayWork
-                      ? <ButtonCallMemo isMobile disabled={noConversation || noLLM} onClick={handleCallClicked} />
-                      : <ButtonBeamMemo isMobile disabled={noConversation /*|| noLLM*/} color={beamButtonColor} hasContent={!!composeText} onClick={handleSendTextBeamClicked} />)
+                      ? null // <ButtonCallMemo isMobile disabled={noConversation || noLLM} onClick={handleCallClicked} />
+                      : null /*<ButtonBeamMemo isMobile disabled={noConversation || noLLM} color={beamButtonColor} hasContent={!!composeText} onClick={handleSendTextBeamClicked} />*/)
                     : isDraw
                       ? <ButtonOptionsDraw isMobile onClick={handleDrawOptionsClicked} sx={{ mr: { xs: 1, md: 2 } }} />
                       : <IconButton disabled sx={{ mr: { xs: 1, md: 2 } }} />
@@ -1036,14 +1036,14 @@ export function Composer(props: {
                 </ButtonGroup>
 
                 {/* [desktop] secondary-top buttons */}
-                {isDesktop && showChatExtras && !assistantAbortible && (
+                {/* {isDesktop && showChatExtras && !assistantAbortible && (
                   <ButtonBeamMemo
                     color={beamButtonColor}
-                    disabled={noConversation /*|| noLLM*/}
+                    disabled={noConversation || noLLM}
                     hasContent={!!composeText}
                     onClick={handleSendTextBeamClicked}
                   />
-                )}
+                )} */}
 
               </Box>
 
@@ -1057,7 +1057,7 @@ export function Composer(props: {
               {isDesktop && <Box sx={{ mt: 'auto', display: 'grid', gap: 1 }}>
 
                 {/* [desktop] Call secondary button - hidden when speech recognition is not available */}
-                {showChatExtras && speechMayWork && <ButtonCallMemo disabled={noConversation || noLLM || assistantAbortible} onClick={handleCallClicked} />}
+                {/* {showChatExtras && speechMayWork && <ButtonCallMemo disabled={noConversation || noLLM || assistantAbortible} onClick={handleCallClicked} />} */}
 
                 {/* [desktop] Draw Options secondary button */}
                 {isDraw && <ButtonOptionsDraw onClick={handleDrawOptionsClicked} />}

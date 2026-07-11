@@ -8,7 +8,7 @@ import type { DiagramConfig } from '~/modules/aifn/digrams/DiagramsModal';
 import type { TradeConfig } from '~/modules/trade/TradeModal';
 import { downloadSingleChat, importConversationsFromFilesAtRest, openConversationsAtRestPicker } from '~/modules/trade/trade.client';
 import { imaginePromptFromTextOrThrow } from '~/modules/aifn/imagine/imaginePromptFromText';
-import { useAreBeamsOpen } from '~/modules/beam/store-beam.hooks';
+// import { useAreBeamsOpen } from '~/modules/beam/store-beam.hooks';
 import { useCapabilityTextToImage } from '~/modules/t2i/t2i.client';
 
 import type { DConversation, DConversationId } from '~/common/stores/chat/chat.conversation';
@@ -39,10 +39,10 @@ import { useOverlayComponents } from '~/common/layout/overlays/useOverlayCompone
 import { useRouterQuery } from '~/common/app.routes';
 import { useUIComplexityIsMinimal } from '~/common/stores/store-ui';
 import { ChatPane } from './components/layout-pane/ChatPane';
-import { ChatBarBeam } from './components/layout-bar/ChatBarBeam';
+// import { ChatBarBeam } from './components/layout-bar/ChatBarBeam';
 import { ChatBarAltTitle } from './components/layout-bar/ChatBarAltTitle';
 import { ChatBarChat } from './components/layout-bar/ChatBarChat';
-import { ChatBeamWrapper } from './components/ChatBeamWrapper';
+// import { ChatBeamWrapper } from './components/ChatBeamWrapper';
 import { ChatDrawerMemo } from './components/layout-drawer/ChatDrawer';
 import { ChatMessageList } from './components/ChatMessageList';
 import { Composer } from './components/composer/Composer';
@@ -175,11 +175,9 @@ export function AppChat() {
     };
   }, [chatPanes]);
 
-  const beamsOpens = useAreBeamsOpen(paneBeamStores);
-  const beamOpenStoreInFocusedPane = focusedPaneIndex === null ? null
-    : !beamsOpens?.[focusedPaneIndex] ? null
-      : paneBeamStores?.[focusedPaneIndex] ?? null;
-  const focusedChatBeamOpen = focusedPaneIndex !== null && !!beamsOpens?.[focusedPaneIndex];
+  // const beamsOpens = useAreBeamsOpen(paneBeamStores);
+  const beamOpenStoreInFocusedPane = null; // focusedPaneIndex === null ? null : !beamsOpens?.[focusedPaneIndex] ? null : paneBeamStores?.[focusedPaneIndex] ?? null;
+  const focusedChatBeamOpen = false; // focusedPaneIndex !== null && !!beamsOpens?.[focusedPaneIndex];
 
   const {
     // focused
@@ -460,12 +458,12 @@ export function AppChat() {
 
   const barAltTitle = null;
 
-  const focusedBarContent = React.useMemo(() => beamOpenStoreInFocusedPane
+  const focusedBarContent = React.useMemo(() => /*beamOpenStoreInFocusedPane
       ? <ChatBarBeam conversationTitle={focusedChatTitle ?? 'No Chat'} beamStore={beamOpenStoreInFocusedPane} isMobile={isMobile} />
-      : (barAltTitle === null)
+      :*/ (barAltTitle === null)
         ? <ChatBarChat conversationId={focusedPaneConversationId} llmDropdownRef={llmDropdownRef} personaDropdownRef={personaDropdownRef} />
         : <ChatBarAltTitle conversationId={focusedPaneConversationId} conversationTitle={barAltTitle} />
-    , [barAltTitle, beamOpenStoreInFocusedPane, focusedChatTitle, focusedPaneConversationId, isMobile],
+    , [barAltTitle, /*beamOpenStoreInFocusedPane,*/ focusedChatTitle, focusedPaneConversationId, isMobile],
   );
 
 
@@ -626,7 +624,7 @@ export function AppChat() {
         const _paneChatHandler = paneHandlers[idx] ?? null;
         const _paneIsIncognito = _paneChatHandler?.isIncognito() ?? false;
         const _paneBeamStoreApi = paneBeamStores[idx] ?? null;
-        const _paneBeamIsOpen = !!beamsOpens?.[idx] && !!_paneBeamStoreApi;
+        const _paneBeamIsOpen = false; // !!beamsOpens?.[idx] && !!_paneBeamStoreApi;
         const _panesCount = chatPanes.length;
         const _keyAndId = `chat-pane-${pane.paneId}`;
         const _sepId = `sep-pane-${idx}`;
@@ -721,13 +719,13 @@ export function AppChat() {
                 />
               )}
 
-              {_paneBeamIsOpen && (
+              {/* {_paneBeamIsOpen && (
                 <ChatBeamWrapper
                   beamStore={_paneBeamStoreApi}
                   isMobile={isMobile}
                   inlineSx={chatBeamWrapperSx}
                 />
-              )}
+              )} */}
 
               {/* Visibility and actions are handled via Context */}
               <ScrollToBottomButton />

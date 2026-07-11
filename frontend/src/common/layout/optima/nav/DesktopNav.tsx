@@ -170,15 +170,7 @@ export function DesktopNav(props: { component: React.ElementType, currentApp?: N
           sx={{ minWidth: 260 }}
         >
 
-          <MenuItem component='a' variant='solid' color='primary' href={bigAgiProUrl} target='_blank' sx={{ minHeight: 40 }}>
-            {/*<ListItemDecorator>New</ListItemDecorator>*/}
-            {/*<ListItemDecorator><RocketLaunchRounded /></ListItemDecorator>*/}
-            Big-AGI Pro
-            {/*✨*/}
-            <ArrowOutwardRoundedIcon sx={{ ml: 'auto' }}/>
-          </MenuItem>
 
-          <ListDivider />
 
           {/* APPS Section */}
           {overflowApps.length > 0 && (
@@ -196,55 +188,8 @@ export function DesktopNav(props: { component: React.ElementType, currentApp?: N
                   {app.name + (app.isDev ? ' [DEV]' : '')}
                 </MenuItem>,
               )}
-              <ListDivider />
             </>
           )}
-
-          {/* QUICK TOOLS Section */}
-          <ListItem>
-            <Typography level="body-xs" sx={{ textTransform: 'uppercase', fontWeight: 600 }}>
-              Quick Tools
-            </Typography>
-          </ListItem>
-          <MenuItem onClick={optimaActions().openAIXDebugger}>
-            <ListItemDecorator><TerminalOutlinedIcon /></ListItemDecorator>
-            AI Inspector
-          </MenuItem>
-          <MenuItem disabled={!scratchClipSupported()} onClick={toggleScratchClipVisibility}>
-            <ListItemDecorator><HistoryIcon /></ListItemDecorator>
-            {isScratchClipVisible ? 'Hide ' : ''}Clipboard {scratchClipSupported() ? 'History' : '(not supported)'}
-          </MenuItem>
-          <ListDivider />
-
-          {/* SUPPORT Section */}
-          <ListItem>
-            <Typography level="body-xs" sx={{ textTransform: 'uppercase', fontWeight: 600 }}>
-              Support
-            </Typography>
-          </ListItem>
-          <MenuItem component='a' href={BaseProduct.SupportForm()} target='_blank'>
-            <ListItemDecorator>🔥</ListItemDecorator>
-            <div>
-              Improve Big-AGI
-              <FormHelperText>AI fixes what you report</FormHelperText>
-            </div>
-            <ArrowOutwardRoundedIcon sx={{ ml: 'auto' }} />
-          </MenuItem>
-          {!!releaseNotesUrl && (
-            <MenuItem onClick={handleShowReleaseNotes}>
-              <ListItemDecorator>
-                <FeatureBadge featureKey='nav-quick-menu' active={releaseNotesShown}>
-                  <CodeIcon />
-                </FeatureBadge>
-              </ListItemDecorator>
-              Release Notes
-            </MenuItem>
-          )}
-          <MenuItem onClick={handleShowTechnologies}>
-            {/*<ListItemDecorator><BuildCircleOutlinedIcon /></ListItemDecorator>*/}
-            <ListItemDecorator />
-            Build Info
-          </MenuItem>
 
         </Menu>
       </Dropdown>);

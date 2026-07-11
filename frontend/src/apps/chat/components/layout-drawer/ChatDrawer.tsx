@@ -242,10 +242,6 @@ function ChatDrawer(props: {
             <ListItemDecorator>{filterHasDocFragments && <CheckRoundedIcon />}</ListItemDecorator>
             Has Attachments <AttachFileRoundedIcon />
           </MenuItem>
-          <MenuItem onClick={toggleFilterHasBeamOpen}>
-            <ListItemDecorator>{filterHasBeamOpen && <CheckRoundedIcon />}</ListItemDecorator>
-            Beam Open <ChatBeamIcon />
-          </MenuItem>
 
           <ListDivider />
           <ListItem>
