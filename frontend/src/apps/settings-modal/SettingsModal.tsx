@@ -249,7 +249,7 @@ export function SettingsModal(props: {
         >
           <Tab value='chat' disableIndicator sx={_styles.tabsListTab}>Chat</Tab>
           <Tab value='voice' disableIndicator sx={_styles.tabsListTab}>Voice</Tab>
-          <Tab value='draw' disableIndicator sx={_styles.tabsListTab}>Draw</Tab>
+          {/* <Tab value='draw' disableIndicator sx={_styles.tabsListTab}>Draw</Tab> */}
           <Tab value='tools' disableIndicator sx={_styles.tabsListTab}>Tools</Tab>
         </TabList>
 
@@ -281,7 +281,7 @@ export function SettingsModal(props: {
           </Topics>
         </TabPanel>
 
-        <TabPanel value='draw' color='primary' variant='outlined' sx={_styles.tabPanel}>
+        {/* <TabPanel value='draw' color='primary' variant='outlined' sx={_styles.tabPanel}>
           <Topics>
             <Topic>
               <T2ISettings />
@@ -290,7 +290,7 @@ export function SettingsModal(props: {
               <DallESettings />
             </Topic>
           </Topics>
-        </TabPanel>
+        </TabPanel> */}
 
         <TabPanel value='tools' color='primary' variant='outlined' sx={_styles.tabPanel}>
 

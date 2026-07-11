@@ -198,7 +198,9 @@ export function AppChat() {
   // const focusedConversationWorkspaceId = workspaceForConversationIdentity(focusedPaneConversationId);
   //// const focusedConversationWorkspace = useWorkspaceIdForConversation(focusedPaneConversationId);
 
-  const { mayWork: capabilityHasT2I, mayEdit: capabilityHasT2IEdit } = useCapabilityTextToImage();
+  // const { mayWork: capabilityHasT2I, mayEdit: capabilityHasT2IEdit } = useCapabilityTextToImage();
+  const capabilityHasT2I = false;
+  const capabilityHasT2IEdit = false;
 
   const activeFolderId = useFolderStore(({ enableFolders, folders }) => {
     const activeFolderId = enableFolders ? _activeFolderId : null;

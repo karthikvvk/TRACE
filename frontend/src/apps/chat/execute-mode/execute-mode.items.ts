@@ -45,18 +45,5 @@ export const ExecuteModeItems: { [key in ChatExecuteMode]: ModeDescription } = {
     sendColor: 'primary',
     sendText: 'Add',
   },
-  'generate-image': {
-    label: 'Draw',
-    description: 'AI Image Generation',
-    canAttach: 'requires-tti-edit',
-    requiresTTI: true,
-    sendColor: 'warning',
-    sendText: 'Draw',
-  },
-  'react-content': {
-    label: 'Reason + Act', //  · α
-    description: 'Answer questions in multiple steps',
-    sendColor: 'success',
-    sendText: 'ReAct',
-  },
+
 };
