@@ -171,7 +171,11 @@ class ColabBridge:
 
     async def _send(self, payload: dict) -> None:
         if self._ws:
-            await self._ws.send_json(payload)
+            # Force ensure_ascii=True to completely eliminate the possibility
+            # of Uvicorn/WebSockets sending invalid UTF-8 sequences (like lone surrogates
+            # or weird terminal bytes) that crash the strict Colab websockets client.
+            text = json.dumps(payload, ensure_ascii=True)
+            await self._ws.send_text(text)
 
     async def _receive_loop(self) -> None:
         """Route incoming Colab messages to the correct turn queue."""

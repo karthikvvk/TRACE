@@ -44,14 +44,14 @@ class Settings(BaseSettings):
     overdue_threshold_minutes: int = 5
 
     # Gemini
-    gemini_api_key: str = ""                            # GEMINI_API_KEY env var
-    gemini_model: str = "gemini-2.5-flash-lite"
+    # gemini_api_key: str = ""                            # GEMINI_API_KEY env var
+    # gemini_model: str = "gemini-2.5-flash-lite"
 
     # Local LLM — works with any OpenAI-compatible server (LM Studio, Ollama, etc.)
     # LM Studio default: http://localhost:1234/v1
     # Ollama default:    http://localhost:11434/v1
     ollama_base_url: str = "http://localhost:1234/v1"
-    ollama_model: str = "huggingfacetb_smollm3-3b"
+    ollama_model: str = "Qwen/Qwen2.5-Coder-3B-Instruct"
     use_llm: bool = True
 
 
