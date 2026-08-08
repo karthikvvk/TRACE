@@ -27,6 +27,7 @@ from backend.routes import browser_ws, chat
 from backend.routes import openai_compat        # ← Big-AGI / OpenAI-compat layer
 from backend.routes import colab_ws          # ← COLAB BRIDGE (remove to disable)
 from backend.routes import scrape            # ← REST scraping endpoint (extension + httpx fallback)
+from backend.routes import mcp               # ← MCP Streamable HTTP endpoint
 
 
 @asynccontextmanager
@@ -63,8 +64,12 @@ if _UI_DIR.is_dir():
     app.mount("/ui", StaticFiles(directory=_UI_DIR, html=True), name="ui")
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
-# Allow the Chrome extension origin AND Big-AGI running on localhost:3000
-_cors_origins = [settings.extension_origin, "http://localhost:3000", "http://127.0.0.1:3000"]
+# Allow the Chrome extension origin, Big-AGI on localhost:3000, and MCP clients on localhost
+_cors_origins = [
+    settings.extension_origin,
+    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:8000", "http://127.0.0.1:8000",   # MCP clients on same host
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -83,6 +88,8 @@ app.include_router(chat.router)
 app.include_router(openai_compat.router)         # ← /v1/models  +  /v1/chat/completions
 app.include_router(colab_ws.router)          # ← COLAB BRIDGE (remove to disable)
 app.include_router(scrape.router)            # ← POST /scrape (extension + httpx fallback)
+if settings.mcp_enabled:
+    app.include_router(mcp.router)           # ← MCP Streamable HTTP (POST+GET /mcp)
 
 
 # ── Health & Meta ────────────────────────────────────────────────────────────

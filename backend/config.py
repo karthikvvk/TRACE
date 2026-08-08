@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     colab_secret: str = "colab-change-me"   # COLAB_SECRET — shared with the Colab notebook
     colab_mode: bool = False                # COLAB_MODE=true — route /chat through Colab brain
 
+    # MCP (Model Context Protocol) — exposes tools over /mcp (Streamable HTTP)
+    mcp_enabled: bool = True            # MCP_ENABLED=false to disable the /mcp endpoint
+
     # Proactive engine
     check_interval_minutes: int = 10
     overdue_threshold_minutes: int = 5
